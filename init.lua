@@ -9,37 +9,53 @@ CycleApp.homepage = "https://github.com/mikedmcfarland/CycleApp.spoon"
 
 -- initialization
 function CycleApp:init(_)
+    local windows = {}
+    self.windows = windows
+
+    self.windowFilter =
+        hs.window.filter.new():subscribe(
+        {
+            [hs.window.filter.windowCreated] = function(window, appName, _)
+                print("adding " .. appName .. ":" .. window:id())
+                ListAdd(windows, window)
+            end,
+            [hs.window.filter.windowDestroyed] = function(window, appName, _)
+                print("removing " .. appName .. ":" .. window:id())
+                ListRemove(windows, window)
+            end,
+            [hs.window.filter.windowFocused] = function(window, appName, _)
+                print("adding " .. appName .. ":" .. window:id())
+                ListAdd(windows, window)
+            end
+        }
+    )
+
+    self.windows = windows
+
     return self
 end
 
 function CycleApp:appWindows(app)
-    local appWindows =
+    local windows =
         hs.fnutils.filter(
-        app:allWindows(),
+        self.windows,
         function(win)
-            return win:isStandard()
+            return win:application():name() == app:name()
         end
     )
-
     table.sort(
-        appWindows,
+        windows,
         function(a, b)
-            return a:id() < b:id()
+            return a:id() > b:id()
         end
     )
-    return appWindows
+    return windows
 end
 
 function CycleApp:cycle()
     local window = hs.window.frontmostWindow()
-    if window ~= nil then
-        print("window " .. window:title())
-    else
-        print("window is nil")
-    end
-
     local app = window:application()
-    print("app " .. app:title())
+    print("current " .. app:title() .. ":" .. window:id())
 
     local windows = self:appWindows(app)
     if #windows == 1 then
@@ -80,8 +96,23 @@ function CycleApp:bindHotkeys(mapping)
     return self
 end
 
-function Wrap(max, min, x)
-    return (((x - min) % (max - min)) + (max - min)) % (max - min) + min
+function ListAdd(list, item)
+    for _, a in ipairs(list) do
+        if a:id() == item:id() then
+            return
+        end
+    end
+
+    table.insert(list, item)
+end
+
+function ListRemove(list, item)
+    for i, a in ipairs(list) do
+        if a:id() == item:id() then
+            table.remove(list, i)
+            return
+        end
+    end
 end
 
 return CycleApp
