@@ -1,9 +1,6 @@
 local CycleApp = {}
 CycleApp.__index = CycleApp
 
-local obj = CycleApp
-obj.__index = obj
-
 -- metadata
 CycleApp.name = "cycleApp"
 CycleApp.version = "0.1"
@@ -15,13 +12,8 @@ function CycleApp:init(_)
     return self
 end
 
-function CycleApp:cycle()
-    local window = hs.window.frontmostWindow()
-    self.print("window " .. window)
-    local app = window.application()
-    self.print("app " .. app)
-
-    local allAppWindows =
+function CycleApp:appWindows(app)
+    local appWindows =
         hs.fnutils.filter(
         app:allWindows(),
         function(win)
@@ -30,17 +22,43 @@ function CycleApp:cycle()
     )
 
     table.sort(
-        allAppWindows,
+        appWindows,
         function(a, b)
             return a:id() < b:id()
         end
     )
+    return appWindows
+end
 
-    local currentIndex = hs.fnutils.indexOf(allAppWindows, window)
-    local nextIndex = Wrap(#allAppWindows, 0, currentIndex + 1)
-    local nextWindow = allAppWindows[nextIndex]
-    self.print("nextWindow " .. nextWindow)
-    nextWindow.focus()
+function CycleApp:cycle()
+    local window = hs.window.frontmostWindow()
+    if window ~= nil then
+        print("window " .. window:title())
+    else
+        print("window is nil")
+    end
+
+    local app = window:application()
+    print("app " .. app:title())
+
+    local windows = self:appWindows(app)
+    if #windows == 1 then
+        -- we have only 1 window, not switching
+        return
+    end
+
+    local currentIndex = hs.fnutils.indexOf(windows, window)
+    print("currentIndex " .. currentIndex)
+    print("allAppWindows length" .. #windows)
+
+    local nextIndex = currentIndex + 1
+    if nextIndex > #windows then
+        nextIndex = 1
+    end
+    print("nextIndex " .. nextIndex)
+    local nextWindow = windows[nextIndex]
+    print("nextWindow " .. nextWindow:title())
+    nextWindow:focus()
 end
 
 function CycleApp:setDebug(value)
@@ -53,8 +71,8 @@ function CycleApp:print(message)
     end
 end
 
-function CycleApp:bindHotKeys(mapping)
-    self.print("bindingHotKeys" .. mapping)
+function CycleApp:bindHotkeys(mapping)
+    self.print("bindingHotkeys")
     local spec = {
         cycle = hs.fnutils.partial(self.cycle, self)
     }
@@ -65,3 +83,5 @@ end
 function Wrap(max, min, x)
     return (((x - min) % (max - min)) + (max - min)) % (max - min) + min
 end
+
+return CycleApp
