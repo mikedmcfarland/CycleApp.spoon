@@ -7,31 +7,45 @@ CycleApp.version = "0.1"
 CycleApp.author = "mikedmcfarland <mikedmcfarland@gmail.com>"
 CycleApp.homepage = "https://github.com/mikedmcfarland/CycleApp.spoon"
 
+local logger = hs.logger.new("CycleApp", "error")
+CycleApp.logger = logger
+
 -- initialization
-function CycleApp:init(_)
+function CycleApp:init()
+    logger.d("init")
+    return self
+end
+
+function CycleApp:start()
+    logger.d("start")
     local windows = {}
     self.windows = windows
 
     self.windowFilter =
         hs.window.filter.new():subscribe(
         {
-            [hs.window.filter.windowCreated] = function(window, appName, _)
-                print("adding " .. appName .. ":" .. window:id())
+            [hs.window.filter.windowCreated] = function(window, appName, eventName)
+                logger.d(eventName, "adding", appName, window:id())
                 ListAdd(windows, window)
             end,
-            [hs.window.filter.windowDestroyed] = function(window, appName, _)
-                print("removing " .. appName .. ":" .. window:id())
+            [hs.window.filter.windowDestroyed] = function(window, appName, eventName)
+                logger.d(eventName, "removing", appName, window:id())
                 ListRemove(windows, window)
             end,
-            [hs.window.filter.windowFocused] = function(window, appName, _)
-                print("adding " .. appName .. ":" .. window:id())
+            [hs.window.filter.windowFocused] = function(window, appName, eventName)
+                logger.d(eventName, "adding", appName, window:id())
                 ListAdd(windows, window)
             end
         }
     )
 
     self.windows = windows
+    return self
+end
 
+function CycleApp:stop()
+    logger.d("stop")
+    self.windowFilter.unsubscribeAll()
     return self
 end
 
@@ -55,40 +69,27 @@ end
 function CycleApp:cycle()
     local window = hs.window.frontmostWindow()
     local app = window:application()
-    print("current " .. app:title() .. ":" .. window:id())
+    logger.i("cycle current window", app:title(), window:id())
 
     local windows = self:appWindows(app)
-    if #windows == 1 then
-        -- we have only 1 window, not switching
+    if #windows <= 1 then
+        logger.i("no windows to switch to")
         return
     end
 
     local currentIndex = hs.fnutils.indexOf(windows, window)
-    print("currentIndex " .. currentIndex)
-    print("allAppWindows length" .. #windows)
 
     local nextIndex = currentIndex + 1
     if nextIndex > #windows then
         nextIndex = 1
     end
-    print("nextIndex " .. nextIndex)
     local nextWindow = windows[nextIndex]
-    print("nextWindow " .. nextWindow:title())
+    logger.i("cycle focusing", nextWindow:title(), window:id())
     nextWindow:focus()
 end
 
-function CycleApp:setDebug(value)
-    self.debug = value
-end
-
-function CycleApp:print(message)
-    if self.debug ~= nil and self.debug then
-        print("cycleApp: " .. message)
-    end
-end
-
 function CycleApp:bindHotkeys(mapping)
-    self.print("bindingHotkeys")
+    self.logger.d("bindingHotkeys")
     local spec = {
         cycle = hs.fnutils.partial(self.cycle, self)
     }
@@ -98,7 +99,7 @@ end
 
 function ListAdd(list, item)
     for _, a in ipairs(list) do
-        if a:id() == item:id() then
+        if a == item then
             return
         end
     end
@@ -108,7 +109,7 @@ end
 
 function ListRemove(list, item)
     for i, a in ipairs(list) do
-        if a:id() == item:id() then
+        if a == item then
             table.remove(list, i)
             return
         end
